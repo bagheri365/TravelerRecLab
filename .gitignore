@@ -1,0 +1,17 @@
+# Local environments and Python caches
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+.DS_Store
+*.patch
+
+# Downloaded datasets and derived artifacts
+data/raw/
+data/processed/
+*.parquet
+checkpoints/
+outputs/
+wandb/
