@@ -38,3 +38,35 @@ The audit reports shape, event types, missingness, user/session counts, and sess
 - [Expedia Personalized Sort](https://www.kaggle.com/competitions/expedia-personalized-sort/data): impression-level click/booking ranking data.
 
 Data licenses and download access are separate from this repository's source-code license.
+
+## v0.1 — Causal next-click-out dataset
+
+After downloading Trivago `train.csv`, run:
+
+```bash
+python -m travelerreclab.data.build_sequences \
+  --input data/raw/train.csv \
+  --output data/processed/next_clickout.jsonl \
+  --max-history 50 --min-history 1
+```
+
+Each JSONL row contains the **strictly previous** session events as `history`,
+`target_item` (the next click-out), plus the candidates/prices logged on that
+click-out event. Sorting is `(user_id, session_id, timestamp, step, input row)`.
+Sessions use the composite key `(user_id, session_id)`.
+
+**Important evaluation limitation:** Trivago's click-out-row impression list is
+not independently timestamped as an earlier exposure event. Treat it as an
+*offline candidate set* for evaluating next click-out prediction, not proof that
+these candidates were known at an earlier prediction timestamp. The target
+click-out is excluded from the encoded history. This milestone does **not**
+create booking labels or claim unbiased impression-level click prediction.
+Rows with missing target items, invalid candidate membership, or mismatched
+candidate/price lengths are skipped. The v0.1 pipeline loads the CSV in memory;
+chunked processing is a future scalability improvement.
+
+## Design rationale and interview preparation
+
+This repository records choices as explicit [architecture decision records](docs/decisions/README.md), not just implementation notes. Read the [observed Trivago data audit](docs/data/trivago_audit_2026-10-13.md), use the [experiment template](docs/experiments/experiment_template.md) to record evidence, and rehearse the [interview decision drill](docs/interview/decision_drill.md).
+
+**Evidence status:** v0.1 and model defaults are not automatically validated by a successful test run. Next-click-out is a proxy, not a completed booking; target-row candidate lists are an offline evaluation construct, not verified past exposure.
