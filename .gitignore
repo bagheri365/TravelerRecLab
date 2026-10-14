@@ -15,3 +15,6 @@ data/processed/
 checkpoints/
 outputs/
 wandb/
+
+# Downloaded dataset archives
+data/*.zip

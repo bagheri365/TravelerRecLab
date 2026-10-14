@@ -70,3 +70,33 @@ chunked processing is a future scalability improvement.
 This repository records choices as explicit [architecture decision records](docs/decisions/README.md), not just implementation notes. Read the [observed Trivago data audit](docs/data/trivago_audit_2026-10-13.md), use the [experiment template](docs/experiments/experiment_template.md) to record evidence, and rehearse the [interview decision drill](docs/interview/decision_drill.md).
 
 **Evidence status:** v0.1 and model defaults are not automatically validated by a successful test run. Next-click-out is a proxy, not a completed booking; target-row candidate lists are an offline evaluation construct, not verified past exposure.
+
+## v0.1.6 — Targeted sequence and leakage EDA
+
+After generating `data/processed/next_clickout.jsonl`, run:
+
+```bash
+python -m travelerreclab.data.eda_sequences \
+  --input data/processed/next_clickout.jsonl \
+  --output-dir data/processed/sequence_eda
+```
+
+Read `data/processed/sequence_eda/report.md` and
+[the diagnostic protocol](docs/data/sequence_eda_protocol.md). Decision
+rationale: [ADR-008](docs/decisions/ADR-008-eda-driven-modeling-scope.md).
+The diagnostic inspects **emitted examples**, not all raw click-outs; it cannot
+certify source-event ordering or point-in-time exposure availability.
+
+## v0.1.7 — Raw data validation before baselines
+
+Audit ordering anomalies, click-out exclusion reasons, and hotel metadata/popularity:
+
+```bash
+python -m travelerreclab.data.validate_raw \
+  --input data/raw/train.csv \
+  --metadata data/raw/item_metadata.csv \
+  --output-dir data/processed/raw_validation \
+  --emitted-examples 1276216
+```
+
+See [validation protocol](docs/data/raw_validation_protocol.md) and [ADR-009](docs/decisions/ADR-009-raw-validation-before-baselines.md). Results must be interpreted as *source-order* diagnostics; the v0.1 sequence builder sorts events.
