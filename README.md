@@ -116,17 +116,17 @@ See [`v0_5_metadata_coverage_findings.md`](docs/experiments/v0_5_metadata_covera
 
 **Data:** [Trivago RecSys Challenge 2019](https://www.recsyschallenge.com/2019/), using `train.csv` (event log) and `item_metadata.csv` (hotel properties). The repository does not distribute the raw data.
 
-For an eligible target click-out at time \(t\):
+For an eligible target click-out at time $t$:
 
-- **Input history** \(H_t\): strictly preceding events in the same `(user_id, session_id)`, capped at the 50 most recent events and requiring at least one retained event.
-- **Candidates** \(C_t\): hotel IDs from the `impressions` field on the **target click-out row**.
-- **Label** \(y_t\): its clicked-out hotel, required to belong to \(C_t\).
-- **Task**: score and rerank candidates to place \(y_t\) as high as possible.
+- **Input history** $H_t$: strictly preceding events in the same `(user_id, session_id)`, capped at the 50 most recent events and requiring at least one retained event.
+- **Candidates** $C_t$: hotel IDs from the `impressions` field on the **target click-out row**.
+- **Label** $y_t$: its clicked-out hotel, required to belong to $C_t$.
+- **Task**: score and rerank candidates to place $y_t$ as high as possible.
 
-\[
+```math
  s_\theta(c\mid H_t,C_t),\qquad
  \mathcal L=-\log\frac{\exp(s_\theta(y_t))}{\sum_{c\in C_t}\exp(s_\theta(c))}.
-\]
+```
 
 Chronological evaluation splits by **target timestamp in UTC**:
 
@@ -154,122 +154,122 @@ These slices expose regressions hidden by the overall average. A model can be ex
 
 ### Ranking Metrics and Tie Handling
 
-We report **MRR**, **Recall@5**, and **NDCG@5**, using *tie-neutral* scoring for equally scored candidates. For a target tied across ranks \(a\) through \(b\), its reciprocal rank is averaged across all tied positions:
+We report **MRR**, **Recall@5**, and **NDCG@5**, using *tie-neutral* scoring for equally scored candidates. For a target tied across ranks $a$ through $b$, its reciprocal rank is averaged across all tied positions:
 
-\[
+```math
  RR_{\mathrm{neutral}}=\frac{1}{b-a+1}\sum_{r=a}^{b}\frac{1}{r}.
-\]
+```
 
 This distinction matters because using the logged candidate order to break score ties can silently inflate performance.
 
 ## Mathematical Formulation of the Methods
 
-The experiments all solve the same **candidate-ranking** problem. For a retained event history \(H=(a_1,\ldots,a_T)\), candidates \(C=\{c_1,\ldots,c_K\}\), and clicked target \(y\in C\), each method produces scores \(s(c\mid H,C)\). Ranking metrics depend on the order of these scores, not on calibrated click probabilities.
+The experiments all solve the same **candidate-ranking** problem. For a retained event history $H=(a_1,\ldots,a_T)$, candidates $C=\{c_1,\ldots,c_K\}$, and clicked target $y\in C$, each method produces scores $s(c\mid H,C)$. Ranking metrics depend on the order of these scores, not on calibrated click probabilities.
 
 ### Fixed-Rule Controls (v0.2–v0.2.3)
 
-Let \(h_i\) denote the hotel reference, when recognized, in event \(a_i\), and let \(w(a_i)\) be its fixed action-type weight. The initial controls used the following scoring rules:
+Let $h_i$ denote the hotel reference, when recognized, in event $a_i$, and let $w(a_i)$ be its fixed action-type weight. The initial controls used the following scoring rules:
 
-| Method | Candidate score \(s(c)\) | Interpretation |
+| Method | Candidate score $s(c)$ | Interpretation |
 |---|---|---|
-| Random | \(r_{\mathrm{seed}}(c,\text{example})\) | Deterministic pseudo-random sanity control, independent of preferences. |
-| Global popularity | \(\sum_{n\in\mathcal D_{\mathrm{train}}}\mathbf 1[y_n=c]\) | Counts training click-out targets; ignores the current history. |
-| Last referenced hotel | \(\mathbf 1[c=h_T^*]\) | \(h_T^*\) is the most recent **recognized hotel** in the retained history. |
-| Action-weighted | \(\sum_{i=1}^T w(a_i)\mathbf 1[h_i=c]\) | Aggregates matching hotel interactions with fixed action weights. |
-| Recency-weighted | \(\sum_{i=1}^T w(a_i)e^{-\Delta t_i/\tau}\mathbf 1[h_i=c]\) | Discounts older interactions; validation selected \(\tau=300\) seconds. |
+| Random | $r_{\mathrm{seed}}(c,\text{example})$ | Deterministic pseudo-random sanity control, independent of preferences. |
+| Global popularity | $\sum_{n\in\mathcal D_{\mathrm{train}}}\mathbf 1[y_n=c]$ | Counts training click-out targets; ignores the current history. |
+| Last referenced hotel | $\mathbf 1[c=h_T^*]$ | $h_T^*$ is the most recent **recognized hotel** in the retained history. |
+| Action-weighted | $\sum_{i=1}^T w(a_i)\mathbf 1[h_i=c]$ | Aggregates matching hotel interactions with fixed action weights. |
+| Recency-weighted | $\sum_{i=1}^T w(a_i)e^{-\Delta t_i/\tau}\mathbf 1[h_i=c]$ | Discounts older interactions; validation selected $\tau=300$ seconds. |
 
-Here \(\Delta t_i\) is the nonnegative time gap between the target event and past event \(i\). Events without a recognized hotel reference do not contribute to the hotel-matching sums. A missing last hotel produces zero last-item scores for all candidates.
+Here $\Delta t_i$ is the nonnegative time gap between the target event and past event $i$. Events without a recognized hotel reference do not contribute to the hotel-matching sums. A missing last hotel produces zero last-item scores for all candidates.
 
-The position control uses the recorded **zero-based** candidate index \(j\) in a list of length \(K\):
+The position control uses the recorded **zero-based** candidate index $j$ in a list of length $K$:
 
-\[
+```math
 p(c_j)=1-\frac{j}{K-1}\quad(K>1),
 \qquad p(c_1)=1\quad(K=1).
-\]
+```
 
 The additive hybrid is
 
-\[
+```math
 s_{\mathrm{hybrid}}(c_j)=p(c_j)+\lambda\,\mathbf 1[c_j=h_T^*],
-\]
+```
 
-with \(\lambda\in\{0,0.25,0.5,1,2,4\}\) evaluated on validation. The selected \(\lambda=2\) and \(\lambda=4\) produced identical rankings and metrics in the reported sweep. This hybrid intentionally uses the **logged candidate position**, unlike the neural encoders.
+with $\lambda\in\{0,0.25,0.5,1,2,4\}$ evaluated on validation. The selected $\lambda=2$ and $\lambda=4$ produced identical rankings and metrics in the reported sweep. This hybrid intentionally uses the **logged candidate position**, unlike the neural encoders.
 
 ### Learned Hotel Embeddings and Mean Pooling (v0.3)
 
-Each train-vocabulary hotel has an embedding \(e_h\in\mathbb R^d\) and candidate bias \(b_h\), with \(d=32\) in the full runs. For the \(L\) recognized hotel references in the retained history:
+Each train-vocabulary hotel has an embedding $e_h\in\mathbb R^d$ and candidate bias $b_h$, with $d=32$ in the full runs. For the $L$ recognized hotel references in the retained history:
 
-\[
+```math
 z_{\mathrm{mean}}=\frac{1}{L}\sum_{i=1}^{L}e_{h_i},\qquad
 s_{\mathrm{mean}}(c)=\frac{z_{\mathrm{mean}}^\top e_c}{\sqrt d}+b_c.
-\]
+```
 
-An empty recognized-hotel history is handled separately by the implementation. The substantive limitation is **permutation invariance**: the hotel sequences \([A,B,C]\) and \([C,B,A]\) have the same average representation.
+An empty recognized-hotel history is handled separately by the implementation. The substantive limitation is **permutation invariance**: the hotel sequences $[A,B,C]$ and $[C,B,A]$ have the same average representation.
 
 ### GRU Session Encoder (v0.3.1)
 
 The GRU replaces averaging with ordered recurrent updates:
 
-\[
+```math
 h_i=\operatorname{GRU}(e_{h_i},h_{i-1}),\qquad
 z_{\mathrm{GRU}}=h_L,\qquad
 s_{\mathrm{GRU}}(c)=\frac{z_{\mathrm{GRU}}^\top e_c}{\sqrt d}+b_c.
-\]
+```
 
-The GRU has trainable gates that can retain or update the session state as hotel interactions arrive. Unlike averaging, \(h_L\) can depend on the order of the sequence. Our **inference-time shuffle** test kept hotel IDs and counts fixed while changing their order; it measured the sensitivity of this trained encoder, not an independently trained shuffled-history architecture.
+The GRU has trainable gates that can retain or update the session state as hotel interactions arrive. Unlike averaging, $h_L$ can depend on the order of the sequence. Our **inference-time shuffle** test kept hotel IDs and counts fixed while changing their order; it measured the sensitivity of this trained encoder, not an independently trained shuffled-history architecture.
 
 ### Candidate-Aware Attention over GRU States (v0.4)
 
-Instead of scoring every candidate using only the final state, preserve \(h_1,\ldots,h_L\). Each candidate \(c\) generates a query \(q_c=W_qe_c\) and attends to valid historical states:
+Instead of scoring every candidate using only the final state, preserve $h_1,\ldots,h_L$. Each candidate $c$ generates a query $q_c=W_qe_c$ and attends to valid historical states:
 
-\[
+```math
 \alpha_{c,i}=\frac{\exp(q_c^\top h_i/\sqrt d)}{\sum_{j=1}^{L}\exp(q_c^\top h_j/\sqrt d)},
 \qquad v_c=\sum_{i=1}^{L}\alpha_{c,i}h_i.
-\]
+```
 
-The implementation uses a learned **shared scalar blend**, \(\beta=\sigma(g)\), to retain the final GRU state while incorporating candidate-specific context:
+The implementation uses a learned **shared scalar blend**, $\beta=\sigma(g)$, to retain the final GRU state while incorporating candidate-specific context:
 
-\[
+```math
 s_{\mathrm{attn}}(c)=
 \frac{e_c^\top(h_L+\beta v_c)}{\sqrt d}+b_c.
-\]
+```
 
 For empty hotel histories, it bypasses attention and uses a learned empty-history state. The v0.4 gain cannot be assigned exclusively to attention, because the new query projection, blend and additional parameters also change the architecture.
 
 ### ID + Property Content-Aware Attention (v0.5.1)
 
-Let \(P(c)\) be the available metadata tags for hotel \(c\), with learned tag embeddings \(v_p\). An empty property list contributes a zero vector. The hotel representation is:
+Let $P(c)$ be the available metadata tags for hotel $c$, with learned tag embeddings $v_p$. An empty property list contributes a zero vector. The hotel representation is:
 
-\[
+```math
 m(c)=\begin{cases}
 \frac{1}{|P(c)|}\sum_{p\in P(c)}v_p,& |P(c)|>0,\\
 0,&|P(c)|=0,
 \end{cases}
 \qquad
 \widetilde e_c=e_{\mathrm{ID}(c)}+\gamma m(c),\quad\gamma=0.5.
-\]
+```
 
-The model uses \(\widetilde e\) for **both historical hotel inputs and candidates**, then applies the same GRU and candidate-aware attention construction with the resulting states. Its candidate score additionally includes a learned linear *content-only prior*:
+The model uses $\widetilde e$ for **both historical hotel inputs and candidates**, then applies the same GRU and candidate-aware attention construction with the resulting states. Its candidate score additionally includes a learned linear *content-only prior*:
 
-\[
+```math
 s_{\mathrm{content}}(c)=
 \frac{\widetilde e_c^\top(h_L+\beta v_c)}{\sqrt d}
 +b_{\mathrm{ID}(c)}+w_{\mathrm{prior}}^\top m(c).
-\]
+```
 
-An ID absent from the training vocabulary maps to a shared unknown-ID embedding, but its properties can still produce a distinct \(m(c)\). The added prior allows property-based ranking when no hotel history is recognized. It also means the experiment changes more than just the embedding input.
+An ID absent from the training vocabulary maps to a shared unknown-ID embedding, but its properties can still produce a distinct $m(c)$. The added prior allows property-based ranking when no hotel history is recognized. It also means the experiment changes more than just the embedding input.
 
 ### Shared Training Objective and Evaluation
 
 All neural systems optimize a candidate-restricted softmax loss on the clicked hotel:
 
-\[
+```math
 P_\theta(y\mid H,C)=\frac{\exp(s_\theta(y))}{\sum_{c\in C}\exp(s_\theta(c))},
 \qquad
 \mathcal L(\theta)=-\frac{1}{N}\sum_{n=1}^{N}\log P_\theta(y_n\mid H_n,C_n).
-\]
+```
 
-A candidate padding position receives score \(-\infty\) and is excluded from the denominator. Model selection used validation tie-neutral MRR. For target rank \(r_n\), the untied metric is \(\mathrm{MRR}=N^{-1}\sum_n1/r_n\); tied target ranks are handled by the tie-neutral expected reciprocal rank defined above.
+A candidate padding position receives score $-\infty$ and is excluded from the denominator. Model selection used validation tie-neutral MRR. For target rank $r_n$, the untied metric is $\mathrm{MRR}=N^{-1}\sum_n1/r_n$; tied target ranks are handled by the tie-neutral expected reciprocal rank defined above.
 
 These equations describe the **implemented offline scoring families**, not a full probabilistic model of bookings, travel intent, or a streaming representation update service.
 
