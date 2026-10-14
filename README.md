@@ -211,7 +211,7 @@ An empty recognized-hotel history is handled separately by the implementation. T
 The GRU replaces averaging with ordered recurrent updates:
 
 ```math
-h_i=\operatorname{GRU}(e_{h_i},h_{i-1}),\qquad
+h_i=\mathrm{GRU}(e_{h_i},h_{i-1}),\qquad
 z_{\mathrm{GRU}}=h_L,\qquad
 s_{\mathrm{GRU}}(c)=\frac{z_{\mathrm{GRU}}^\top e_c}{\sqrt d}+b_c.
 ```
